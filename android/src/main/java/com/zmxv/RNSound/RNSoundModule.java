@@ -2,11 +2,14 @@ package com.zmxv.RNSound;
 
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnCompletionListener;
 import android.media.MediaPlayer.OnErrorListener;
-import android.net.Uri;
-import android.media.AudioManager;
+import android.os.Build;
+import android.util.Log;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Callback;
@@ -17,14 +20,11 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
-import com.facebook.react.modules.core.ExceptionsManagerModule;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.io.IOException;
-
-import android.util.Log;
 
 public class RNSoundModule extends ReactContextBaseJavaModule implements AudioManager.OnAudioFocusChangeListener {
   Map<Double, MediaPlayer> playerPool = new HashMap<>();
@@ -226,7 +226,22 @@ public class RNSoundModule extends ReactContextBaseJavaModule implements AudioMa
     if (!this.mixWithOthers) {
       AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
 
-      audioManager.requestAudioFocus(this, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+      if (audioManager != null) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+          audioManager.requestAudioFocus(new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                  .setAudioAttributes(
+                          new AudioAttributes.Builder()
+                                  .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                                  .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                                  .build()
+                  )
+                  .setAcceptsDelayedFocusGain(true)
+                  .setOnAudioFocusChangeListener(this).build()
+          );
+        } else {
+          audioManager.requestAudioFocus(this, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+        }
+      }
 
       this.focusedPlayerKey = key;
     }
